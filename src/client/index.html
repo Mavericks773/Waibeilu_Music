@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#0D0524" />
+    <title>同听房 · 五席同听</title>
+    <link rel="stylesheet" href="/styles/tokens.css" />
+    <link rel="stylesheet" href="/styles/layout.css" />
+    <link rel="stylesheet" href="/styles/components.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">跳到主要内容</a>
+    <audio id="audio" preload="auto"></audio>
+    <main id="main">
+      <section id="login-screen" class="login-screen">
+        <div class="brand">
+          <span class="eyebrow">LISTEN TOGETHER · 5 SEATS</span>
+          <h1>同听<span>房</span><b>♪</b></h1>
+          <p>最多五人在线，同一首歌，同一个进度。</p>
+          <div class="brand-grid" aria-hidden="true"></div>
+        </div>
+        <form id="login-form" class="login-card">
+          <h2>进入房间<span class="dot"></span></h2>
+          <label for="nickname">昵称 <small>选填</small></label
+          ><input
+            id="nickname"
+            maxlength="24"
+            placeholder="朋友怎么称呼你"
+            autocomplete="nickname"
+          />
+          <label for="password">房间密码</label>
+          <div class="password-field">
+            <input
+              id="password"
+              type="password"
+              maxlength="200"
+              required
+              autocomplete="current-password"
+              placeholder="输入共享密码"
+            /><button type="button" id="show-password" aria-label="显示密码">显示</button>
+          </div>
+          <p id="login-error" class="error" role="alert"></p>
+          <button class="primary enter" id="enter-button">进入房间 <span>↗</span></button>
+          <p class="hint">点按进入开启声音 · 仅支持 Chrome</p>
+        </form>
+      </section>
+      <section id="room-screen" hidden>
+        <header class="room-header">
+          <div class="wordmark">同听房<span class="dot"></span></div>
+          <div class="header-right">
+            <div id="presence" class="presence" aria-label="在线人数"></div>
+            <button id="logout" class="quiet">退出 ↗</button>
+          </div>
+        </header>
+        <div id="notice" class="notice" role="status" hidden>
+          <span id="notice-text"></span
+          ><button id="notice-action" class="small-button" hidden>继续收听</button>
+        </div>
+        <div class="room-layout">
+          <section id="playlist-panel" class="playlist-panel">
+            <div class="section-title">
+              <h2>歌单 <small id="track-count">0 首</small></h2>
+              <label class="upload-button" for="upload-input">＋ 上传 MP3</label
+              ><input id="upload-input" type="file" accept=".mp3,audio/mpeg" multiple hidden />
+            </div>
+            <div class="storage-card">
+              <div>
+                <span class="eyebrow">存储空间</span
+                ><strong id="storage-remaining">正在读取…</strong>
+              </div>
+              <div class="storage-bar" role="img" aria-label="歌单空间使用情况">
+                <i id="storage-used"></i><i id="storage-pending"></i><i id="storage-reserved"></i>
+              </div>
+              <p id="storage-detail" class="hint"></p>
+              <div id="uploads" aria-live="polite"></div>
+            </div>
+            <label class="search-field"
+              ><span class="sr-only">搜索歌曲或歌手</span
+              ><input
+                id="search"
+                type="search"
+                placeholder="搜索歌名或歌手"
+                autocomplete="off"
+              /><span>⌕</span></label
+            >
+            <div id="playlist" class="playlist"></div>
+          </section>
+          <section id="player-panel" class="player-panel">
+            <div class="player-top">
+              <span class="eyebrow">LISTEN TOGETHER</span
+              ><span id="sync-status" class="sync-status">尚未收听</span>
+            </div>
+            <div class="record-art" aria-hidden="true">
+              <div class="record-disc">
+                <span>同<br />听</span>
+              </div>
+              <div class="art-label">FIVE SEATS / ONE SONG</div>
+            </div>
+            <div class="track-heading">
+              <p id="play-status" class="eyebrow">READY TO LISTEN</p>
+              <h2 id="current-title">选择一首开始播放</h2>
+              <p id="current-artist">与朋友分享此刻</p>
+            </div>
+            <div class="seek-wrap">
+              <label for="seek" class="sr-only">播放进度</label
+              ><input id="seek" type="range" min="0" max="1" step="0.1" value="0" disabled />
+              <div class="time-row">
+                <span id="position">0:00</span><span id="duration">0:00</span>
+              </div>
+            </div>
+            <div class="transport">
+              <button id="previous" class="round" aria-label="上一首">❮❮</button
+              ><button id="toggle-play" class="play-main" aria-label="播放">▶</button
+              ><button id="next" class="round" aria-label="下一首">❯❯</button>
+            </div>
+            <div class="modes">
+              <span class="eyebrow">循环模式</span>
+              <div>
+                <button id="repeat-mode" aria-pressed="true">↻ 单曲循环</button
+                ><button id="shuffle-mode" aria-pressed="false">⤨ 随机播放</button>
+              </div>
+            </div>
+            <label class="volume"
+              >本地音量
+              <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" /><span
+                id="volume-label"
+                >80%</span
+              ></label
+            >
+            <p class="hint player-hint">所有人都可以控制播放 · 音量只影响自己</p>
+          </section>
+        </div>
+        <nav class="mobile-tabs" aria-label="房间页面">
+          <button id="tab-playlist" aria-pressed="true">♫ <span>歌单</span></button
+          ><button id="tab-player" aria-pressed="false">◉ <span>播放</span></button>
+        </nav>
+      </section>
+    </main>
+    <dialog id="delete-dialog">
+      <form method="dialog">
+        <span class="eyebrow">REMOVE TRACK</span>
+        <h2>删除这首歌？</h2>
+        <p id="delete-title"></p>
+        <p class="hint">
+          所有人的歌单会同时移除它。如果正在播放，会立即停止。文件清理完成后才会释放空间。
+        </p>
+        <p id="delete-error" class="error" role="alert"></p>
+        <div class="dialog-actions">
+          <button value="cancel" id="delete-cancel" class="quiet">取消</button
+          ><button type="button" id="delete-confirm" class="danger">确认删除</button>
+        </div>
+      </form>
+    </dialog>
+    <div id="toast" class="toast" role="status" hidden></div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

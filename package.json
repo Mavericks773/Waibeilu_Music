@@ -1,0 +1,30 @@
+{
+  "name": "waibeilu-music",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node --env-file-if-exists=.env dist/server/main.js",
+    "dev": "npm run build && npm start",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.mjs dist/tests/*.test.mjs",
+    "format": "prettier --write src tests scripts"
+  },
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "music-metadata": "^11.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/busboy": "^1.5.4",
+    "@types/node": "^24.0.0",
+    "@types/ws": "^8.18.0",
+    "esbuild": "^0.25.0",
+    "prettier": "^3.9.10",
+    "typescript": "^5.9.0"
+  }
+}

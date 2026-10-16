@@ -1,0 +1,219 @@
+.login-screen {
+  min-height: 100dvh;
+  max-width: 1100px;
+  margin: auto;
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  align-items: center;
+  gap: 80px;
+  padding: 56px 40px;
+}
+.login-card {
+  padding: 36px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--cyan);
+  background: var(--surface);
+}
+.brand {
+  position: relative;
+}
+.brand h1 {
+  font-size: 76px;
+  letter-spacing: -0.05em;
+  margin: 14px 0;
+}
+.brand h1 span {
+  color: var(--cyan);
+}
+.brand h1 b {
+  font-size: 40px;
+  color: var(--pink);
+  margin-left: 20px;
+}
+.brand p {
+  color: var(--muted);
+}
+.brand-grid {
+  height: 110px;
+  margin-top: 40px;
+  border-bottom: 1px solid var(--pink);
+  background:
+    linear-gradient(0deg, transparent 95%, #ff00ff33 95%),
+    linear-gradient(90deg, transparent 95%, #ff00ff33 95%);
+  background-size: 22px 22px;
+  transform: perspective(180px) rotateX(35deg);
+  opacity: 0.6;
+}
+.room-header {
+  height: 80px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 40px;
+}
+.header-right {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+.room-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(360px, 1fr);
+  max-width: 1280px;
+  margin: auto;
+  min-height: calc(100dvh - 80px);
+}
+.playlist-panel {
+  padding: 32px 36px;
+  border-right: 1px solid var(--line);
+}
+.player-panel {
+  padding: 32px 48px;
+  max-width: 650px;
+  width: 100%;
+  margin: 0 auto;
+}
+.section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.section-title h2 {
+  font-size: 23px;
+}
+.section-title small {
+  font-size: 12px;
+  margin-left: 10px;
+}
+.player-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.mobile-tabs {
+  display: none;
+}
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  background: var(--raised);
+  padding: 10px 20px;
+  font-size: 13px;
+  color: var(--cyan);
+}
+@media (max-width: 899px) {
+  .login-screen {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 32px;
+    padding: 40px 24px;
+  }
+  .brand {
+    text-align: center;
+  }
+  .brand h1 {
+    font-size: 54px;
+    margin: 12px 0;
+  }
+  .brand p,
+  .brand-grid {
+    display: none;
+  }
+  .login-card {
+    max-width: 420px;
+    width: 100%;
+    padding: 28px 24px;
+  }
+  .room-header {
+    height: 68px;
+    padding: 0 20px;
+  }
+  .header-right {
+    gap: 12px;
+  }
+  .room-layout {
+    display: block;
+    min-height: 0;
+    padding-bottom: calc(82px + env(safe-area-inset-bottom));
+  }
+  .playlist-panel {
+    padding: 24px 20px;
+    border: 0;
+  }
+  .player-panel {
+    padding: 24px 28px;
+  }
+  .mobile-tabs {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    border-top: 1px solid var(--line);
+    background: #13082ef5;
+    padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
+    backdrop-filter: blur(12px);
+  }
+  .mobile-tabs button {
+    flex: 1;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    min-height: 48px;
+    font-size: 22px;
+  }
+  .mobile-tabs button span {
+    display: block;
+    font-size: 11px;
+  }
+  .mobile-tabs button[aria-pressed='true'] {
+    color: var(--cyan);
+  }
+  body[data-tab='playlist'] #player-panel {
+    display: none;
+  }
+  body[data-tab='player'] #playlist-panel {
+    display: none;
+  }
+  .presence .seat {
+    width: 5px;
+  }
+  .player-panel .record-art {
+    width: min(65vw, 260px);
+    margin: 28px auto;
+  }
+  .section-title h2 {
+    font-size: 21px;
+  }
+}
+@media (max-height: 500px) and (max-width: 899px) {
+  .login-screen {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .brand h1 {
+    font-size: 40px;
+  }
+  .record-art {
+    display: none;
+  }
+  .player-panel {
+    padding-top: 16px;
+  }
+  .track-heading {
+    margin-top: 16px !important;
+  }
+  .transport {
+    margin: 16px 0 !important;
+  }
+}

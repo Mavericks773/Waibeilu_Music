@@ -1,0 +1,24 @@
+[Unit]
+Description=Waibeilu shared music room
+After=network.target
+
+[Service]
+Type=simple
+User=waibeilu
+Group=waibeilu
+WorkingDirectory=/opt/waibeilu-music
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/waibeilu-music.env
+ExecStart=/usr/bin/node /opt/waibeilu-music/dist/server/main.js
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=30
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/waibeilu-music
+
+[Install]
+WantedBy=multi-user.target
