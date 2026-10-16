@@ -46,6 +46,9 @@ export class SeatRegistry {
     this.leases.delete(sessionId);
     this.names.delete(sessionId);
   }
+  rename(sessionId: string, nickname: string): void {
+    if (this.leases.has(sessionId)) this.names.set(sessionId, nickname);
+  }
   expire(): void {
     for (const [id, lease] of this.leases) if (lease.expiresAtMs <= Date.now()) this.release(id);
   }

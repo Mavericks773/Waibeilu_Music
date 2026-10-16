@@ -16,7 +16,7 @@ test('房间：MP3 上传、五人席位、并发控制、循环、容量和恢�
     secure: false,
     dataDirectory: directory,
     publicDirectory: resolve('dist/public'),
-    limitBytes: 300000000,
+    limitBytes: 1000000000,
     maxFileBytes: 50000000,
   };
   let runtime = await createServer(config);
@@ -82,6 +82,7 @@ test('房间：MP3 上传、五人席位、并发控制、循环、容量和恢�
     let storage = await (await request('/api/storage', 'GET', undefined, session)).json();
     assert.equal(storage.occupiedBytes, fixture.length);
     assert.equal(storage.reservedBytes, 0);
+    assert.equal(storage.limitBytes, 1000000000);
     assert.equal(
       (await request(`/api/tracks/${track.id}/audio`, 'GET', undefined, session)).status,
       403,
@@ -113,14 +114,24 @@ test('房间：MP3 上传、五人席位、并发控制、循环、容量和恢�
       assert.equal(reply.type, i < 5 ? 'joined' : 'error');
       if (i === 5) assert.equal(reply.code, 'ROOM_FULL');
     }
+    let roomView = await (await request('/api/room', 'GET', undefined, session)).json();
+    assert.deepEqual(roomView.presence.nicknames, ['测试朋友', '朋友', '朋友', '朋友', '朋友']);
+    await request('/api/session', 'PATCH', { nickname: '改名后的朋友' }, session);
+    roomView = await (await request('/api/room', 'GET', undefined, session)).json();
+    assert.equal(roomView.presence.nicknames[0], '改名后的朋友');
+    assert.equal(roomView.presence.activeCount, 5);
     const competing = await connect(session);
     competing.send({ type: 'join', requestId: 'compete' });
-    assert.equal((await competing.wait(m => m.type === 'error')).code, 'TAKEOVER_REQUIRED');
-    const closed = new Promise(resolve => clients[0].socket.once('close', resolve));
-    clients[0].socket.close(); await closed;
+    assert.equal((await competing.wait((m) => m.type === 'error')).code, 'TAKEOVER_REQUIRED');
+    const closed = new Promise((resolve) => clients[0].socket.once('close', resolve));
+    clients[0].socket.close();
+    await closed;
     const reconnected = await connect(session);
     reconnected.send({ type: 'join', requestId: 'reload' });
-    assert.equal((await reconnected.wait(m => m.type === 'joined' || m.type === 'error')).type, 'joined');
+    assert.equal(
+      (await reconnected.wait((m) => m.type === 'joined' || m.type === 'error')).type,
+      'joined',
+    );
     clients[0] = reconnected;
     const audio = await request(`/api/tracks/${track.id}/audio`, 'GET', undefined, session, {
       Range: 'bytes=100-199',
@@ -208,7 +219,7 @@ test('房间：MP3 上传、五人席位、并发控制、循环、容量和恢�
     // Simulate nearly full storage with pending deletion: cannot reserve beyond quota.
     runtime.database.db
       .prepare('INSERT INTO reservations VALUES (?,?)')
-      .run('test-full', 300000000 - fixture.length - 10);
+      .run('test-full', 1000000000 - fixture.length - 10);
     const over = new FormData();
     over.append('file', new Blob([fixture]), 'full.mp3');
     assert.equal(
@@ -222,6 +233,13 @@ test('房间：MP3 上传、五人席位、并发控制、循环、容量和恢�
     runtime.database.db.prepare('DELETE FROM reservations WHERE id=?').run('test-full');
     await command(0, { action: 'pause' });
     await command(0, { action: 'seek', trackId: track.id, positionSeconds: 25 });
+    assert.equal((await request('/api/logout', 'POST', undefined, sessions[4])).status, 200);
+    roomView = await (await request('/api/room', 'GET', undefined, session)).json();
+    assert.equal(roomView.presence.activeCount, 4);
+    assert.equal(roomView.presence.nicknames.length, 4);
+    runtime.app.seats.requireLease(sessions[3].session.id).expiresAtMs = Date.now() - 1;
+    await runtime.app.tick();
+    assert.equal(runtime.app.seats.presence().nicknames.length, 3);
     for (const s of sockets) s.terminate();
     await runtime.stop();
     runtime = await createServer(config);
@@ -259,7 +277,7 @@ test('播放顺序、空歌单、旧指令和随机历史', async () => {
     secure: false,
     dataDirectory: directory,
     publicDirectory: resolve('dist/public'),
-    limitBytes: 300000000,
+    limitBytes: 1000000000,
     maxFileBytes: 50000000,
   };
   const runtime = await createServer(config);

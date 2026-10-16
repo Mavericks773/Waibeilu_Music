@@ -1,5 +1,6 @@
 import type { TrackSummary } from '../shared/models.js';
 import type { Action } from '../shared/protocol.js';
+import { AUDIO_FILE_ACCEPT, isSupportedAudioName, MAX_AUDIO_FILE_BYTES } from '../shared/limits.js';
 import { ApiClient, RoomConnection, requestId, RequestError } from './transport.js';
 import { AudioPlayer, ClockEstimator, SyncController, MediaSessionBridge } from './audio.js';
 import { ClientStore } from './state.js';
@@ -32,6 +33,7 @@ export class ClientApplication {
   private probes = new Map<string, number>();
   private intervals: number[] = [];
   async mount(): Promise<void> {
+    element<HTMLInputElement>('upload-input').accept = AUDIO_FILE_ACCEPT;
     this.shell.tab('playlist');
     element<HTMLFormElement>('login-form').onsubmit = (e) => {
       e.preventDefault();
@@ -92,11 +94,15 @@ export class ClientApplication {
       this.dialog.track = null;
     });
     element('notice-action').onclick = () => void this.resume();
-    for (const event of ['loadedmetadata', 'canplay', 'playing', 'waiting', 'ended'])
+    for (const event of ['loadedmetadata', 'canplay', 'playing', 'waiting'])
       this.audio.element.addEventListener(event, () => {
         void this.sync.reconcile(true).then(() => this.render());
-        if (event === 'ended') this.send({ type: 'getState', requestId: requestId() });
       });
+    // The server owns looping. Replaying a finished element here can emit ended again
+    // before the server advances, flooding getState requests on short Ogg clips.
+    this.audio.element.addEventListener('ended', () => {
+      this.send({ type: 'getState', requestId: requestId() });
+    });
     this.audio.element.addEventListener('error', () => {
       if (this.audio.trackId) {
         this.sync.status = '音频加载失败';
@@ -387,8 +393,8 @@ export class ClientApplication {
     for (let i = 0; i < files.length; i++) {
       const task = this.store.uploads.find((t) => t.id === tasks[i].id)!;
       try {
-        if (!files[i].name.toLowerCase().endsWith('.mp3') || files[i].size > 50000000)
-          throw new Error('仅支持不超过 50 MB 的 MP3');
+        if (!isSupportedAudioName(files[i].name) || files[i].size > MAX_AUDIO_FILE_BYTES)
+          throw new Error('仅支持不超过 50 MB 的 MP3 或 Ogg');
         task.phase = 'uploading';
         this.playlist.uploads(this.store.uploads);
         await this.api.upload(files[i], (bytes, validating) => {

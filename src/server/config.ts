@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { PLAYLIST_LIMIT_BYTES, MAX_AUDIO_FILE_BYTES } from '../shared/limits.js';
 export interface AppConfig {
   port: number;
   host: string;
@@ -33,7 +34,7 @@ export function loadConfig(env = process.env): AppConfig {
     secure: u.protocol === 'https:',
     dataDirectory: resolve(env.DATA_DIR || 'data'),
     publicDirectory: resolve('dist/public'),
-    limitBytes: 300000000,
-    maxFileBytes: 50000000,
+    limitBytes: PLAYLIST_LIMIT_BYTES,
+    maxFileBytes: MAX_AUDIO_FILE_BYTES,
   };
 }

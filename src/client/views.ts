@@ -5,6 +5,11 @@ export function time(seconds: number): string {
   const n = Math.max(0, Math.floor(seconds || 0));
   return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
 }
+export function storageCapacity(bytes: number): string {
+  return bytes >= 1e9
+    ? `${Number((bytes / 1e9).toFixed(2))} GB`
+    : `${Number((bytes / 1e6).toFixed(1))} MB`;
+}
 export class PlaylistView {
   constructor(
     private play: (id: string) => void,
@@ -47,13 +52,13 @@ export class PlaylistView {
     if (!filtered.length) {
       const p = document.createElement('p');
       p.className = 'empty';
-      p.textContent = store.tracks.length ? '没有匹配的歌曲' : '歌单还空着，上传第一首 MP3 吧';
+      p.textContent = store.tracks.length ? '没有匹配的歌曲' : '歌单还空着，上传第一首音乐吧';
       root.append(p);
     }
   }
   storage(s: StorageUsage): void {
     element('storage-remaining').textContent =
-      `剩余 ${(s.remainingBytes / 1e6).toFixed(1)} MB / 共 300 MB`;
+      `剩余 ${(s.remainingBytes / 1e6).toFixed(1)} MB / 共 ${storageCapacity(s.limitBytes)}`;
     element('storage-used').style.width =
       `${((s.occupiedBytes - s.pendingDeleteBytes) / s.limitBytes) * 100}%`;
     element('storage-pending').style.width = `${(s.pendingDeleteBytes / s.limitBytes) * 100}%`;
@@ -91,7 +96,7 @@ export class PlayerView {
     const s = store.room,
       track = store.tracks.find((t) => t.id === s?.trackId);
     element('current-title').textContent =
-      track?.title || (store.tracks.length ? '选择一首开始播放' : '上传第一首 MP3');
+      track?.title || (store.tracks.length ? '选择一首开始播放' : '上传第一首音乐');
     element('current-artist').textContent = track?.artist || '与朋友分享此刻';
     element('play-status').textContent =
       s?.status === 'playing' ? 'NOW PLAYING' : s?.trackId ? 'PAUSED' : 'READY TO LISTEN';
@@ -114,15 +119,24 @@ export class PlayerView {
     element('repeat-mode').setAttribute('aria-pressed', String(s?.playbackMode === 'repeat-one'));
     element('shuffle-mode').setAttribute('aria-pressed', String(s?.playbackMode === 'shuffle'));
     const presence = element('presence');
-    presence.replaceChildren();
-    for (let i = 0; i < 5; i++) {
-      const seat = document.createElement('span');
-      seat.className = `seat${i < (store.presence?.activeCount || 0) ? ' on' : ''}`;
-      presence.append(seat);
+    const names = store.presence?.nicknames || [];
+    const key = JSON.stringify(names);
+    if (presence.dataset.members !== key) {
+      presence.dataset.members = key;
+      presence.replaceChildren();
+      for (const name of names) {
+        const member = document.createElement('li');
+        member.className = 'member-chip';
+        member.textContent = name;
+        presence.append(member);
+      }
+      if (!names.length) {
+        const empty = document.createElement('li');
+        empty.className = 'members-empty';
+        empty.textContent = '暂无成员';
+        presence.append(empty);
+      }
     }
-    const label = document.createElement('span');
-    label.textContent = `${store.presence?.activeCount || 0}/5 在线`;
-    presence.append(label);
   }
 }
 export class DeleteDialog {

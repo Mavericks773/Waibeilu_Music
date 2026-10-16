@@ -82,24 +82,41 @@ button {
 }
 .presence {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
   font:
     11px ui-monospace,
     monospace;
   color: var(--muted);
 }
-.seat {
-  width: 6px;
-  height: 15px;
+.online-members {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.presence-label {
+  color: var(--muted);
+  white-space: nowrap;
+  font-size: 11px;
+  line-height: 28px;
+}
+.member-chip {
+  color: var(--cyan);
   border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 4px 8px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
-.seat.on {
-  background: var(--cyan);
-  border-color: var(--cyan);
-}
-.presence span:last-child {
-  margin-left: 7px;
+.members-empty {
+  line-height: 28px;
+  color: var(--muted);
 }
 .upload-button {
   border: 1px solid var(--cyan);

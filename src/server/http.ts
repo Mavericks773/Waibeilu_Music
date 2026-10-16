@@ -9,6 +9,7 @@ import { MusicApplication } from './application.js';
 import { MusicStorage } from './storage.js';
 import { RoomGateway } from './realtime.js';
 import { AppError } from '../shared/protocol.js';
+import { audioContentType } from './media.js';
 export function parseRange(
   header: string | undefined,
   size: number,
@@ -99,7 +100,10 @@ export function createHandler(
         if (path === '/api/session' && method === 'PATCH') {
           const b = await body(req);
           if (typeof b.nickname !== 'string') throw new AppError('INVALID_INPUT', '昵称无效');
-          json({ session: auth.updateNickname(session, b.nickname) });
+          const updated = auth.updateNickname(session, b.nickname);
+          app.seats.rename(session.id, updated.nickname);
+          gateway.broadcast();
+          json({ session: updated });
           return;
         }
         if (path === '/api/logout' && method === 'POST') {
@@ -158,7 +162,7 @@ export function createHandler(
               bb.on('error', fail);
               req.on('aborted', () => bb.destroy(new Error('Upload disconnected')));
               bb.on('close', () => {
-                if (!upload) reject(new AppError('INVALID_INPUT', '请选择 MP3 文件'));
+                if (!upload) reject(new AppError('INVALID_INPUT', '请选择 MP3 或 Ogg 文件'));
                 else
                   upload.then(
                     (track) =>
@@ -203,7 +207,7 @@ export function createHandler(
             throw e;
           }
           res.statusCode = range ? 206 : 200;
-          res.setHeader('Content-Type', 'audio/mpeg');
+          res.setHeader('Content-Type', audioContentType(track.storageKey));
           res.setHeader('Content-Length', range ? range.end - range.start + 1 : size);
           if (range) res.setHeader('Content-Range', `bytes ${range.start}-${range.end}/${size}`);
           if (method === 'HEAD') {
