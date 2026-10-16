@@ -49,7 +49,10 @@
         <header class="room-header">
           <div class="wordmark">同听房<span class="dot"></span></div>
           <div class="header-right">
-            <div id="presence" class="presence" aria-label="在线人数"></div>
+            <div class="online-members">
+              <span class="presence-label">在线</span>
+              <ul id="presence" class="presence" aria-label="在线成员" aria-live="polite"></ul>
+            </div>
             <button id="logout" class="quiet">退出 ↗</button>
           </div>
         </header>
@@ -61,8 +64,14 @@
           <section id="playlist-panel" class="playlist-panel">
             <div class="section-title">
               <h2>歌单 <small id="track-count">0 首</small></h2>
-              <label class="upload-button" for="upload-input">＋ 上传 MP3</label
-              ><input id="upload-input" type="file" accept=".mp3,audio/mpeg" multiple hidden />
+              <label class="upload-button" for="upload-input">＋ 上传音乐</label
+              ><input
+                id="upload-input"
+                type="file"
+                accept=".mp3,.ogg,audio/mpeg,audio/ogg,application/ogg"
+                multiple
+                hidden
+              />
             </div>
             <div class="storage-card">
               <div>

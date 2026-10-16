@@ -14,14 +14,15 @@ Node.js 24+、原生 HTTP、ws、busboy、music-metadata、内置 SQLite；前�
 
 | 文件 | 实现职责 |
 | --- | --- |
-| src/shared/models.ts | 歌曲、300 MB 配额、房间、席位、时间样本类型 |
+| src/shared/models.ts | 歌曲、1 GB 配额、房间、席位、时间样本类型 |
 | src/shared/protocol.ts | 控制指令验证、AppError、统一目标进度公式 |
-| src/server/config.ts | 环境变量与来源校验，五人和 300 MB 产品约束 |
+| src/server/config.ts | 环境变量与来源校验，五人和 1 GB 产品约束 |
 | src/server/persistence.ts | SQLite 表、事务、歌曲与会话数据、播放恢复快照 |
 | src/server/auth.ts | scrypt 密码校验、随机会话 Cookie、CSRF、Origin、登录限流 |
 | src/server/seats.ts | 五人原子分配、刷新/断线保留、标签页接管 |
 | src/server/playback.ts | SerialCommandQueue、PlaybackOrder、RoomService；模式与播放状态 |
-| src/server/storage.ts | MusicStorage、MP3 帧检查、元数据解析、预留配额与清理 |
+| src/server/media.ts | MP3 帧检查、Ogg 页链/CRC 与 Vorbis/Opus 编码检查、响应 MIME |
+| src/server/storage.ts | MusicStorage、MP3/Ogg 元数据解析、预留配额与清理 |
 | src/server/application.ts | 播放/删除协调、共享串行队列、在线数与自然结束调度 |
 | src/server/http.ts | HTTP 路由、JSON/multipart、静态资源与音频 Range/HEAD |
 | src/server/realtime.ts | RoomGateway，WS 会话、消息验证、探时、心跳和广播 |
@@ -46,7 +47,7 @@ Node.js 24+、原生 HTTP、ws、busboy、music-metadata、内置 SQLite；前�
 
 自然结束与最后一人离开由每秒维护任务检查，并通过同一队列处理；这样无需挂在客户端 ended 事件，也没有旧曲结束定时器误触发的问题。WS 每秒推送轻量房间快照，每二十秒心跳。每十秒保存位置，异常退出可能回退少量进度。重启新 epoch 并恢复暂停。
 
-上传使用 Busboy 单文件 multipart + X-File-Size，服务端流式计算实际长度和哈希。先原子预留容量，写入临时目录，验证连续 MPEG Layer III 帧及 music-metadata 可识别时长，提取 ID3 歌名/歌手，再移动文件并同步提交数据库。无需 ffprobe 或转码程序。
+上传使用 Busboy 单文件 multipart + X-File-Size，服务端流式计算实际长度和哈希。先原子预留容量，写入临时目录，验证 MP3 帧或 Ogg 单音轨页链与 CRC 及 music-metadata 可识别时长，提取歌名/歌手，再移动文件并同步提交数据库。无需 ffprobe 或转码程序。
 
 上传最多两路。慢速文件 IO 不占用房间控制队列，数据库提交片段同步执行，中间没有 await，因此同一进程不存在删除和提交交叉执行的窗口。磁盘移动与数据库事务之间通过清理补偿及启动核对恢复；重复内容返回已有曲目，临时或已移动的重复文件清理后释放预留。
 

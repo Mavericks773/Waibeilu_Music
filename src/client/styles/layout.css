@@ -45,17 +45,20 @@
   opacity: 0.6;
 }
 .room-header {
-  height: 80px;
+  min-height: 80px;
   border-bottom: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 40px;
+  gap: 20px;
+  padding: 16px 40px;
 }
 .header-right {
   display: flex;
   gap: 24px;
   align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
 }
 .room-layout {
   display: grid;
@@ -133,11 +136,21 @@
     padding: 28px 24px;
   }
   .room-header {
-    height: 68px;
-    padding: 0 20px;
+    min-height: 68px;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 14px 20px;
   }
   .header-right {
     gap: 12px;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .online-members {
+    flex: 1;
+  }
+  .presence {
+    justify-content: flex-start;
   }
   .room-layout {
     display: block;
@@ -183,9 +196,6 @@
   }
   body[data-tab='player'] #playlist-panel {
     display: none;
-  }
-  .presence .seat {
-    width: 5px;
   }
   .player-panel .record-art {
     width: min(65vw, 260px);

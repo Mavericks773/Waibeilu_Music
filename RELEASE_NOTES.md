@@ -1,0 +1,37 @@
+# 1 GB、在线名单与 Ogg 支持
+
+本分支 `feature/music-1gb-online-ogg` 包含三项功能与对应测试。Safari 卡顿排查见 PLANS.md，待以后开发。
+
+- 歌单总上限从 300 MB 增加至 **1 GB = 1,000,000,000 字节**；单文件仍最多 50 MB。容量显示读取服务端总额，上传预留、待删除计量规则保持一致。
+- 在线区显示每位收听者的昵称，不再只显示人数与席位图标。同名者分别显示，长昵称自动换行。最多五人，短时断线仍保留原有六十秒租约宽限。
+- 上传和播放同时支持 `.mp3` 与 `.ogg`。Ogg 接受单逻辑音轨的 Vorbis / Opus，不接收 Ogg 视频、其他编码、多路或链式音轨。校验文件内容与完整页链/CRC，不只检查后缀或浏览器提供的 MIME。
+- Ogg 音频接口返回 audio/ogg，支持原有 Range / HEAD 与同步控制；歌名和歌手优先读取文件标签。旧 MP3 的随机文件名与 SQLite 数据不需要迁移。
+- 短音频 ended 只请求服务器状态，不立即重播刚结束的音频，避免状态请求循环。这项收尾修正不改变同步阈值、倍速或 Safari 策略。
+
+## 验证
+
+`npm run typecheck`、`npm run build`、`npm test`。新增真实自生成 Vorbis/Opus 两秒音频；自动化覆盖内容与后缀不匹配、损坏、截断、去重、Range 字节、MIME、旧文件恢复、1 GB 精确边界及旧 300 MB 以上预留、在线重名和改名。
+
+浏览器验证两种 Ogg 实际解码和播放、五位在线昵称、容量显示；手机布局验证长昵称不会撑出页面。具体结果记入 VALIDATION.md。
+
+## 合并后的服务器更新
+
+在 PR 合并到 master 后，服务器 root 执行：
+
+```bash
+cd /opt/waibeilu-music
+git pull --ff-only
+```
+
+成功后暂停音乐服务并构建、测试、启动：
+
+```bash
+systemctl stop waibeilu-music
+npm ci --include=dev --no-audit --no-fund && npm run typecheck && npm run build && npm test && systemctl start waibeilu-music
+```
+
+```bash
+systemctl status waibeilu-music --no-pager
+```
+
+无需修改房间环境文件、重装 Node、迁移数据库或重新复制 Nginx 配置。保留已修正的 IP 站点匹配；网页刷新后可见新容量和在线名单。未合并前不要在生产 master 上假定该功能已存在。

@@ -1,67 +1,16 @@
-import { mkdir, readdir, rm, stat, statfs, rename, open } from 'node:fs/promises';
+import { mkdir, readdir, rm, stat, statfs, rename } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import { join, basename } from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { parseFile } from 'music-metadata';
 import type { Readable } from 'node:stream';
 import type { Track, StorageUsage } from '../shared/models.js';
 import { AppError } from '../shared/protocol.js';
 import { Database } from './persistence.js';
 import type { AppConfig } from './config.js';
-/** 检查实际 MPEG Layer III 帧，禁止仅凭扩展名/ID3 接受数据。 */
-async function verifyFrames(path: string): Promise<void> {
-  const file = await open(path, 'r');
-  try {
-    const b = Buffer.alloc(65536);
-    await file.read(b, 0, b.length, 0);
-    let offset = 0;
-    if (b.toString('ascii', 0, 3) === 'ID3')
-      offset =
-        10 +
-        (((b[6] & 127) << 21) | ((b[7] & 127) << 14) | ((b[8] & 127) << 7) | (b[9] & 127)) +
-        (b[5] & 16 ? 10 : 0);
-    const sample = Buffer.alloc(65536);
-    const result = await file.read(sample, 0, sample.length, offset);
-    const size = result.bytesRead;
-    let frames = 0;
-    for (let i = 0; i < size - 4;) {
-      const a = sample[i],
-        b1 = sample[i + 1],
-        c = sample[i + 2];
-      const version = (b1 >> 3) & 3,
-        layer = (b1 >> 1) & 3,
-        br = c >> 4,
-        sr = (c >> 2) & 3;
-      if (
-        a !== 255 ||
-        (b1 & 224) !== 224 ||
-        version === 1 ||
-        layer !== 1 ||
-        !br ||
-        br === 15 ||
-        sr === 3
-      ) {
-        if (frames) break;
-        i++;
-        continue;
-      }
-      const bitrates =
-        version === 3
-          ? [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]
-          : [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160];
-      const rate = [44100, 48000, 32000][sr] / (version === 3 ? 1 : version === 2 ? 2 : 4);
-      const length =
-        Math.floor(((version === 3 ? 144 : 72) * bitrates[br] * 1000) / rate) + ((c >> 1) & 1);
-      if (++frames >= 3) return;
-      i += length;
-    }
-    throw new AppError('INVALID_MP3', '文件不是有效的 MP3 音频');
-  } finally {
-    await file.close();
-  }
-}
+import { isSupportedAudioName } from '../shared/limits.js';
+import { inspectAudio, type AudioExtension } from './media.js';
 export class MusicStorage {
   readonly musicDirectory: string;
   readonly tempDirectory: string;
@@ -75,7 +24,7 @@ export class MusicStorage {
     this.tempDirectory = join(config.dataDirectory, 'uploads');
   }
   path(key: string): string {
-    if (!/^[a-f0-9-]+\.mp3$/.test(key)) throw new Error('Invalid storage key');
+    if (!/^[a-f0-9-]+\.(mp3|ogg)$/.test(key)) throw new Error('Invalid storage key');
     return join(this.musicDirectory, key);
   }
   usage(): StorageUsage {
@@ -86,7 +35,7 @@ export class MusicStorage {
         .total,
     );
     return {
-      limitBytes: 300000000,
+      limitBytes: this.config.limitBytes,
       occupiedBytes,
       pendingDeleteBytes: tracks
         .filter((t) => t.status === 'pending-delete')
@@ -115,8 +64,9 @@ export class MusicStorage {
     await this.cleanup();
   }
   async upload(source: Readable, name: string, declaredBytes: number): Promise<Track> {
-    if (!name.toLowerCase().endsWith('.mp3'))
-      throw new AppError('INVALID_MP3', '只能上传 MP3 文件');
+    if (!isSupportedAudioName(name))
+      throw new AppError('UNSUPPORTED_AUDIO', '只能上传 MP3 或 Ogg 文件');
+    const extension: AudioExtension = name.toLowerCase().endsWith('.ogg') ? '.ogg' : '.mp3';
     if (
       !Number.isSafeInteger(declaredBytes) ||
       declaredBytes < 1 ||
@@ -131,7 +81,7 @@ export class MusicStorage {
     if (this.active >= 2) throw new AppError('BUSY', '已有音乐正在上传，请稍后再试', 429);
     const id = randomUUID(),
       temp = join(this.tempDirectory, id),
-      key = id + '.mp3';
+      key = id + extension;
     this.database.transaction(() => {
       if (declaredBytes > this.usage().remainingBytes)
         throw new AppError('QUOTA_EXCEEDED', '歌单剩余空间不足', 409);
@@ -162,15 +112,8 @@ export class MusicStorage {
         createWriteStream(temp, { flags: 'wx' }),
       );
       if (bytes !== declaredBytes) throw new AppError('INCOMPLETE_UPLOAD', '文件上传不完整');
-      await verifyFrames(temp);
-      const meta = await parseFile(temp, { duration: true, skipCovers: true });
-      const duration = meta.format.duration;
-      if (
-        !duration ||
-        !Number.isFinite(duration) ||
-        (meta.format.codec !== 'MPEG 1 Layer 3' && !meta.format.codec?.includes('Layer 3'))
-      )
-        throw new AppError('INVALID_MP3', '无法读取 MP3 时长或编码');
+      const meta = await inspectAudio(temp, extension);
+      const duration = meta.duration;
       const sha256 = hash.digest('hex');
       const existing = this.database
         .allTracks()
@@ -183,8 +126,8 @@ export class MusicStorage {
           .slice(0, 200);
       const track: Track = {
         id,
-        title: clean(meta.common.title || basename(name).replace(/\.mp3$/i, '')),
-        artist: clean(meta.common.artist || '未知歌手'),
+        title: clean(meta.title || basename(name).replace(/\.(mp3|ogg)$/i, '')),
+        artist: clean(meta.artist || '未知歌手'),
         storageKey: key,
         sizeBytes: bytes,
         durationSeconds: duration,

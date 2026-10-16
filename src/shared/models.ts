@@ -15,8 +15,8 @@ export interface Track {
 /** 歌单接口不暴露磁盘路径；行界面只显示 title、artist 与两个按钮。 */
 export type TrackSummary = Pick<Track, 'id' | 'title' | 'artist' | 'durationSeconds'>;
 export interface StorageUsage {
-  /** 固定十进制 300 MB。 */
-  limitBytes: 300000000;
+  /** 服务端提供的总容量，按字节计。 */
+  limitBytes: number;
   /** 已提交及待删除文件，不含已计入预留的暂存文件。 */
   occupiedBytes: number;
   /** occupiedBytes 的子集，仅用于分段展示，不再从 remainingBytes 重复扣减。 */
