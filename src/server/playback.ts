@@ -11,12 +11,23 @@ export class SerialCommandQueue {
     return result;
   }
 }
+type PlaybackRecordOptions = { history?: boolean; shuffle?: boolean };
+
 export class PlaybackOrder {
   private history: string[] = [];
+  private recent: string[] = [];
+  private shuffleCounts = new Map<string, number>();
   constructor(private random = Math.random) {}
-  record(id: string): void {
-    this.history.push(id);
-    if (this.history.length > 100) this.history.shift();
+  record(id: string, { history = true, shuffle = false }: PlaybackRecordOptions = {}): void {
+    if (history) {
+      this.history.push(id);
+      if (this.history.length > 100) this.history.shift();
+    }
+    // 独立保存最近播放，回退历史不会让刚听过的歌曲重新进入随机候选。
+    this.recent = this.recent.filter((trackId) => trackId !== id);
+    this.recent.push(id);
+    if (this.recent.length > 3) this.recent.shift();
+    if (shuffle) this.shuffleCounts.set(id, (this.shuffleCounts.get(id) ?? 0) + 1);
   }
   choose(
     mode: PlaybackMode,
@@ -36,8 +47,28 @@ export class PlaybackOrder {
         this.history.pop();
       return this.history.at(-1) || current || tracks[0].id;
     }
-    const choices = tracks.filter((t) => t.id !== current);
-    return (choices.length ? choices[Math.floor(this.random() * choices.length)] : tracks[0]).id;
+    const available = new Set(tracks.map((t) => t.id));
+    for (const id of this.shuffleCounts.keys())
+      if (!available.has(id)) this.shuffleCounts.delete(id);
+    // 新歌从当前最低次数开始，避免为了追平历史次数而长时间反复播放新歌。
+    let baseline = Infinity;
+    for (const count of this.shuffleCounts.values()) baseline = Math.min(baseline, count);
+    if (baseline === Infinity) baseline = 0;
+    for (const id of available)
+      if (!this.shuffleCounts.has(id)) this.shuffleCounts.set(id, baseline);
+
+    const excluded = new Set<string>();
+    const recentLimit = Math.min(3, tracks.length - 1);
+    if (recentLimit && current && available.has(current)) excluded.add(current);
+    for (const id of this.recent.toReversed()) {
+      if (excluded.size >= recentLimit) break;
+      if (available.has(id)) excluded.add(id);
+    }
+    const eligible = tracks.filter((t) => !excluded.has(t.id));
+    let minimum = Infinity;
+    for (const track of eligible) minimum = Math.min(minimum, this.shuffleCounts.get(track.id)!);
+    const choices = eligible.filter((t) => this.shuffleCounts.get(t.id) === minimum);
+    return choices[Math.floor(this.random() * choices.length)].id;
   }
 }
 export class RoomService {
@@ -86,7 +117,7 @@ export class RoomService {
     }
     return this.getState();
   }
-  private select(id: string | null, record = true): RoomState {
+  private select(id: string | null, options: PlaybackRecordOptions = {}): RoomState {
     const track = id ? this.database.track(id) : undefined;
     if (id && (!track || track.status !== 'ready'))
       throw new AppError('TRACK_NOT_FOUND', '歌曲已不存在', 404);
@@ -96,7 +127,7 @@ export class RoomService {
       anchorPositionSeconds: 0,
       status: track ? 'playing' : 'stopped',
     });
-    if (track && record) this.order.record(track.id);
+    if (track) this.order.record(track.id, options);
     return state;
   }
   apply(command: Command, actor: Session): RoomState {
@@ -116,7 +147,10 @@ export class RoomService {
       case 'previous':
         this.select(
           this.order.choose(this.state.playbackMode, this.state.trackId, tracks, command.action),
-          command.action !== 'previous',
+          {
+            history: command.action !== 'previous',
+            shuffle: this.state.playbackMode === 'shuffle' && command.action === 'next',
+          },
         );
         break;
       case 'play':
@@ -154,7 +188,7 @@ export class RoomService {
       this.database.allTracks().filter((t) => t.status === 'ready'),
       'ended',
     );
-    this.select(id);
+    this.select(id, { shuffle: this.state.playbackMode === 'shuffle' });
     return true;
   }
   deleted(id: string): void {
